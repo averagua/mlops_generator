@@ -22,8 +22,10 @@ deploy:
   distributions: sdist bdist_wheel
   user: averagua
   password:
-    secure: ${{ secrets.pypi_password }}
+    secure: ${{secrets.PYPI_PASSWORD}}
   on:
     tags: true
     repo: averagua/mlops_generator
     python: 3.8
+    branch: master
+    skip_existing: true
