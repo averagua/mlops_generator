@@ -22,7 +22,7 @@ deploy:
   distributions: sdist bdist_wheel
   user: averagua
   password:
-    secure: PLEASE_REPLACE_ME
+    secure: pypi-AgEIcHlwaS5vcmcCJGQyZWRjYTc5LWVmNDYtNGE0NS04OTE4LTFlMDYzMzY0ZGU2MQACQHsicGVybWlzc2lvbnMiOiB7InByb2plY3RzIjogWyJtbG9wcy1nZW5lcmF0b3IiXX0sICJ2ZXJzaW9uIjogMX0AAAYgoaxCYUfz6_b_JIGz-yWa6RgWs1R61_ppUXFeCHl9nHQ
   on:
     tags: true
     repo: averagua/mlops_generator
