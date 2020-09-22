@@ -26,7 +26,11 @@ CLI for MLOps generator
 * Free software: MIT license
 * Documentation: https://mlops-generator.readthedocs.io.
 
-
+Install
+--------
+```python
+pip install -r ./requirements.txt
+```
 Features
 --------
 

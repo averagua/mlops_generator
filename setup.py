@@ -31,7 +31,7 @@ setup(
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
     ],
-    description="CLI for MLOps generator",
+    description="CLI for MLOps code generator",
     entry_points={
         'console_scripts': [
             'mlops_generator=mlops_generator.cli:main',
