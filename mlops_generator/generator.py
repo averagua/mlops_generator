@@ -101,12 +101,14 @@ class MetaProject(type):
 
 import sys
 
-def promt(cls, field, field_name):
+def promt(cls, field_name):
     try:
+        logger.info(cls)
+        logger.info(dir(cls))
         return click.prompt(
                 field_name,
-                type = field.resolve_primitive_type(),
-                default = field.resolve_default()
+                type = cls.resolve_primitive_type(),
+                default = cls.resolve_default()
             )
     except click.exceptions.Abort as error:
         logger.info("Closed by user {}".format(error))
@@ -151,19 +153,13 @@ class DefaultConfigsSchema(Schema):
         errors = cls().validate(data)
         for field in errors.keys():
             to_ask = cls._declared_fields[field]
-            context[field] = to_ask.promt(to_ask, field)
+            logger.info(to_ask)
+            context[field] = to_ask.promt(field)
         return cls.from_dict(context)
 
     @post_load
     def default_load(self, data, **kwargs):
         return DefaultConfigs(**data)
-
-
-class Project:
-    def __init__(self, version, default_configs):
-        self.version = version
-        self.default_configs = default_configs
-
 
 class Component:
     def __init__(self, name):
@@ -171,6 +167,7 @@ class Component:
 
 class ComponentSchema(Schema):
     name = fields.Str(description="Component's name")
+
 
 class PipelinesProject:
     def __init__(self, name):
@@ -189,6 +186,17 @@ class ProjectSchema(Schema):
     @post_load
     def project_load(self, data, **kwargs):
         return Project(**data)
+
+class Project:
+    _SCHEMA = ProjectSchema()
+    def __init__(self, version, default_configs):
+        self.version = version
+        self.default_configs = default_configs
+
+    @classmethod
+    def initialize(cls):
+        pass
+
 
 class MLOpsProject(MetaProject):
     def __init__(self, ContextManager=None):
