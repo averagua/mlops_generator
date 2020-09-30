@@ -18,6 +18,7 @@ from marshmallow import (
 )
 from marshmallow.exceptions import ValidationError
 from types import GeneratorType
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -56,6 +57,7 @@ class BaseModel(object):
     def render(self, enqueue=True):
         # Issue, you can renderize multiple times
         if not self.templates is None:
+            # Unpack
             self.templates = OrderedDict(self.templates)
             for temp in self.__templates__: self.put_file(temp, self.get_content(temp))
         # files = [{'path': temp, 'content': content} for temp, content in self.__templates__]
@@ -178,16 +180,24 @@ class BaseSchema(Schema):
         trim_blocks=False,
     )
 
+    format_date ='%Y-%m-%d %H:%M'
+
     class Meta:
         ordered = True
 
     @post_load
     def make_object(self, context, **kwargs):
+        """Resolve declared model after serialization"""
         logger.info('Serializing object {}'.format(self))
         made_obj = self.__model__(**context)
-        made_obj.templates = self._gen_templates(context)
+        # made_obj.templates = self._gen_templates(context)
         # made_obj.render()
         return made_obj
+
+    @classmethod
+    def today(cls):
+        """Standar today date."""
+        return datetime.today().strftime(cls.format_date)
 
     def _gen_templates(self, context):
         try:
@@ -203,115 +213,3 @@ class BaseSchema(Schema):
             logger.error(message)
         except Exception as error:
             logger.exception(error)
-
-    @classmethod
-    def from_promt(cls, context=None, load=False, *args, **kwargs):
-        """Generate __model__ class from prompt user input. This implementation use click for define the interface.
-        Only resolve the validations errors for keys in the context
-
-        Args:
-            context (OrderedDict, optional): Current context to iterate with the prompt using. Defaults to None.
-            If context is `None`, an empty ordered dict is initialized
-
-        Raises:
-            TypeError: When the context is not a `dict` or `OrderedDitct`
-
-        Returns:
-            __model__.__class__: Built class instance
-        """
-        inter = cls()
-        # Checkin
-        if context is None:
-            context = OrderedDict({})
-        elif isinstance(context, dict):
-            context = OrderedDict(context)
-        elif not isinstance(context, OrderedDict):
-            raise TypeError(
-                'Context must be {} because promptable is ordered'.format(OrderedDict))
-        # Try to serialize object from incomplete input context. If the validation result in a validation error, will ask to user again.
-        try:
-            inter.validate(context)
-            if load: return inter.load(context)
-            return context
-        # Context validation error
-        except ValidationError as e:
-            # Order the errors using the ordered context
-            ordered_fields = (x for x in context.keys()
-                              if x in e.messages.keys())
-            # Iterate first
-            field = next(ordered_fields)
-            # Handled user interrupt
-            try:
-                # Execute proptable
-                extra_args = {}
-                extra_args['type'] = cls._resolve_primitive_type(field)
-                default = cls._resolve_default(field)
-                if not default is None:
-                    extra_args["default"] = default
-                context[field] = click.prompt(cls._resolve_info(field), **extra_args)
-                return inter.from_promt(context)
-            except KeyboardInterrupt as e:
-                logger.error('\nClosed by user')
-                sys.exit()
-            except click.exceptions.Abort as e:
-                logger.error('\nClosed by user')
-                sys.exit()
-        # Stop iteration mean that can return built class because does not have validation errors
-        except StopIteration:
-            logger.debug('Promt finished')
-            if load: return inter.load(context)
-            return context
-        """
-        except TypeError as e:
-            logger.info(dir(e))
-            logger.info(e.args)
-            error = "Undefinded field ({}) from dict (serializable) is not implemented during promptable. Prefer define using None value".format(e)
-            logger.error(error)
-        """
-
-    @classmethod
-    def _resolve_choices(cls, field_name):
-        field = cls._declared_fields[field_name]
-        return field.validate.choices
-
-    @classmethod
-    def _resolve_info(cls, field_name):
-        try:
-            logger.debug('Resolving info field')
-            field = cls._declared_fields[field_name]
-            return "[{}] {}".format(field.metadata["description"], field_name)
-        except KeyError:
-            return field_name
-
-    @classmethod
-    def _resolve_primitive_type(cls, field_name):
-        """Resolve marshmallow field types to python primitive data types-
-
-        Args:
-            field_name (string): Field name to find in inherited schema class 
-
-        Raises:
-            NotImplementedError: Marsh type to resolve is not implemented
-
-        Returns:
-            type: Built-in Types python <class 'type>
-        """
-        logger.debug('Resolving primitive field type')
-        field = cls._declared_fields[field_name]
-        if isinstance(field, fields.Str):
-            if (not field.validate is None) and isinstance(field.validate, validate.OneOf):
-                choices = field.validate.choices
-                return click.Choice(choices)
-            return str
-        elif isinstance(field, fields.Dict):
-            return AssertionError("{} type is not supported for click")
-        else:
-            raise NotImplementedError("{} not supported".format(type(fields)))
-
-    @classmethod
-    def _resolve_default(cls, field_name):
-        field = cls._declared_fields[field_name]
-        if isinstance(field.default, utils._Missing):
-            return None
-        else:
-            return field.default

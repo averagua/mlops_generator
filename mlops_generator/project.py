@@ -27,9 +27,6 @@ class PipelineModel(BaseModel):
     def __init__(self, name):
         self.name = name
 
-    def __repr__(self):
-        return """-name: {}""".format(self.name)
-
 class PipelineSchema(BaseSchema):
     __model__ = PipelineModel
     name = fields.Str(description="Pipeline's name")
@@ -38,9 +35,6 @@ class PipelineSchema(BaseSchema):
 class ComponentModel(BaseModel):
     def __init__(self, name):
         self.name = name
-
-    def __repr__(self):
-        return """-name: {}""".format(self.name)
 
 class ComponentSchema(BaseSchema):
     __model__ = ComponentModel
@@ -51,12 +45,6 @@ class Architecture(ComponentModel, PipelineModel):
     def __init__(self, components, pipelines):
         self.components = components
         self.pipelines = pipelines
-
-    def __repr__(self):
-        return """
-            Components {}
-            Pipelines {}""".format(self.components, self.pipelines)
-
 
 class ArchitectureSchema(BaseSchema):
     __model__ = Architecture
@@ -84,9 +72,6 @@ class SetupConfig(BaseModel):
     def __init__(self, entrypoint):
         self.entrypoint = entrypoint
 
-    def __repr__(self):
-        return """entrypoint: {}""".format(self.entrypoint)
-
 class TestsModel(BaseModel):
     def __init__(self, framework):
         self.framework = framework
@@ -106,17 +91,13 @@ class SetupSchema(BaseSchema):
         templates = ['setup.py']
 
 class ProjectConfigs(Architecture):
-    def __init__(self, project, author, email, description, package_name, license_type, creation_date=None, architecture=None, version="1.0.0", setup=None, deploy=None, tests=None):
+    def __init__(self, project, author, email, description, package_name, license_type, creation_date, version, architecture, setup=None, deploy=None, tests=None):
         # Serializable data
         self.project = project
         self.author = author
         self.email = email
         self.package_name = package_name
         self.description = description
-        if creation_date is None:
-            creation_date = datetime.today().strftime("%Y-%m-%d")
-        if architecture is None:
-            self.architecture = Architecture(components=[], pipelines=[])
         self.license_type = license_type
         self.deploy = deploy
         self.creation_date = creation_date
@@ -133,70 +114,20 @@ class ProjectConfigs(Architecture):
 class ProjectConfigsSchema(BaseSchema):
     __model__ = ProjectConfigs
     project = fields.Str(required=True, description="Project Name")
+    package_name = fields.Str(required=True, description="Pypi Package name")
     author = fields.Str(required=True, description="Author name")
     email = fields.Email(required=True, description="Contact email")
     description = fields.Str(required=True, description="Project description", validate=validate.Length(max=280))
-    package_name = fields.Str(required=True, description="Pypi Package name")
-    creation_date = fields.DateTime(format='%Y-%m-%d')
+    creation_date = fields.DateTime(format=BaseSchema.format_date, default=BaseSchema.today(), missing=BaseSchema.today())
     version = fields.Str(default="1.0.0", required=True, description="Package version")
-    license_type = fields.Str(default="No license file", validate=validate.OneOf(
-        ["MIT", "BSD-3-Clause", "No license file"]))
+    # default="No license file",
+    license_type = fields.Str(validate=validate.OneOf(
+        ["MIT", "BSD-3-Clause", "No license file"]), required=True, default='No license file', description="Licence type")
 
-    architecture = fields.Nested(ArchitectureSchema, description="MLOps architecture project definition")
-    setup = fields.Nested(SetupSchema, default=None,description="Setup configurations")
-    deploy = fields.Nested(DeploySchema, default=None,description="CI/CD deployment configurations")
-    tests = fields.Nested(TestSChema, default=None,description="Testing framework")
+    architecture = fields.Nested(ArchitectureSchema, description="MLOps architecture project definition", missing=Architecture(components=[], pipelines=[]))
+    setup = fields.Nested(SetupSchema, default=None, description="Setup configurations")
+    deploy = fields.Nested(DeploySchema, default=None, description="CI/CD deployment configurations")
+    tests = fields.Nested(TestSChema, default=None, description="Testing framework")
 
     class Meta:
         templates = ['LICENSE', 'setup.py']
-
-
-class Generator:
-    __PROJECT_SCHEMA = ProjectConfigsSchema()
-    __CONFIG_FILE = 'mlops_configs.json'
-
-    @classmethod
-    def initialize(cls, cwd, tests=False, licence=False, setup=True):
-        creation_date = datetime.today()
-        # ComponentSchema.from_promt({'name': None})
-        # Initialize from prompt user input
-        BaseModel.cwd = cwd
-        context = cls.__PROJECT_SCHEMA.from_promt({
-            "project":  "covid2",
-            "package_name": "covid",
-            "email": "veragua.alb@gmail.com",
-            "description": "description",
-            "license_type": "MIT",
-            "creation_date": creation_date.strftime("%Y-%m-%d"),
-            "author": "Alejandro Veragua",
-            "version": "1.0.0",
-        })
-        # Set current directory
-        Project = cls.__PROJECT_SCHEMA.load(context)  # .render()
-        # Enqueque creation of main project directories, an change current working directory (internal)
-        # for define and persists paths
-        # Enqueue project directory
-        Project.put_dir(Project.project)
-        BaseModel.chdir(Project.project)
-        Project.put_dir(Project.package_name)
-        Project.put_dir('deploy')
-        Project.put_dir('tests')
-        Project.put_dir('references')
-        Project.put_dir('notebooks')
-        # Render the generated templates
-        Project.render()
-        # Persists files
-        Project.persist()
-
-def main():
-    try:
-        logging.info('Welcome to mlops refactoring')
-        command = "initialize"
-        cwd = os.getcwd()
-        if command == "initialize":
-            Generator.initialize(cwd, tests=True, licence=True)
-        else:
-            raise NotImplementedError("{} not implemented".format(command))
-    except Exception as e:
-        logger.exception(e)
-if __name__ == "__main__": main()

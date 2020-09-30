@@ -7,4 +7,3 @@ setup(
     description='{{ description }}',
     license='{% if license_type == 'MIT' %}MIT{% elif license_type == 'BSD-3-Clause' %}BSD-3{% endif %}',
 )
-{{field}}
