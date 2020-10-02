@@ -18,6 +18,7 @@ import logging
 from datetime import datetime
 
 from base import BaseModel, BaseSchema
+from trigger import ChangeTrigger
 
 logger = logging.getLogger(__package__)
 logging.basicConfig(level=logging.INFO)
@@ -83,42 +84,36 @@ class TestSChema(BaseSchema):
         required=True, description="Framework for run test, ML/AI tests included", default="pytest")
 
 class SetupSchema(BaseSchema):
-    __model__ = SetupConfig
     entrypoint = fields.Str(
         required=True, description="Entrypoint for setup", default="setup.py")
 
+    __model__ = SetupConfig
     class Meta:
         templates = ['setup.py']
 
-class ProjectConfigs(Architecture):
-    def __init__(self, project, author, email, description, package_name, license_type, creation_date, version, architecture, setup=None, deploy=None, tests=None):
+class ProjectConfigs(BaseModel):
+    def __init__(self, name, author, email, description, package_name, license_type, version, architecture, setup=None, deploy=None, tests=None):
         # Serializable data
-        self.project = project
+        self.name = name
         self.author = author
         self.email = email
         self.package_name = package_name
         self.description = description
         self.license_type = license_type
         self.deploy = deploy
-        self.creation_date = creation_date
+        # self.creation_date = creation_date
         self.version = version
         self.setup = setup
         self.tests = tests
-
-    def add_tests(self, data):
-        self.tests = None
-        TestSChema().load(data)
-        return self
-
+        self.arquitecture = architecture
 
 class ProjectConfigsSchema(BaseSchema):
-    __model__ = ProjectConfigs
-    project = fields.Str(required=True, description="Project Name")
+    name = fields.Str(required=True, description="Project Name")
     package_name = fields.Str(required=True, description="Pypi Package name")
     author = fields.Str(required=True, description="Author name")
     email = fields.Email(required=True, description="Contact email")
     description = fields.Str(required=True, description="Project description", validate=validate.Length(max=280))
-    creation_date = fields.DateTime(format=BaseSchema.format_date, default=BaseSchema.today(), missing=BaseSchema.today())
+    # creation_date = fields.DateTime(format=BaseSchema.format_date, missing=BaseSchema.today())
     version = fields.Str(default="1.0.0", required=True, description="Package version")
     # default="No license file",
     license_type = fields.Str(validate=validate.OneOf(
@@ -128,6 +123,8 @@ class ProjectConfigsSchema(BaseSchema):
     setup = fields.Nested(SetupSchema, default=None, description="Setup configurations")
     deploy = fields.Nested(DeploySchema, default=None, description="CI/CD deployment configurations")
     tests = fields.Nested(TestSChema, default=None, description="Testing framework")
-
+    
+    
+    __model__ = ProjectConfigs
     class Meta:
-        templates = ['LICENSE', 'setup.py']
+        templates = ['LICENSE']

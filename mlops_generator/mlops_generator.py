@@ -1,6 +1,6 @@
 """Main module."""
 import logging
-from .generator import Generator
+# from .generator import Generator
 from cookiecutter.main import cookiecutter
 # from cookiecutter.config import get_config, get_user_config
 # from cookiecutter.prompt import prompt_for_config
@@ -29,7 +29,7 @@ def pandas_extension(module_name, output_filename):
             'module_name': module_name,
             'module_name_lower': module_name.lower()
         }
-    Generator('pandas/pandas_extension.py', context).module(output_filename)
+    # Generator('pandas/pandas_extension.py', context).module(output_filename)
 
 def initialize():
     cookiecutter("https://github.com/averagua/mlops-kubeflow")

@@ -3,13 +3,16 @@ from collections import OrderedDict, deque
 from marshmallow.schema import Schema, SchemaMeta
 from marshmallow import validate, utils
 from marshmallow.exceptions import ValidationError
+from base import BaseLayer
+
+import importlib
 import sys
 import click
 
 logger = logging.getLogger(__package__)
 logging.basicConfig(level=logging.INFO)
 
-class PromptAdapter:
+class PromptAdapter(BaseLayer):
     """
     Prompt Adapter for serialize (load) an schema using click prompt
     Raises:
@@ -35,25 +38,8 @@ class PromptAdapter:
         'DateTime': str
     } 
 
-    def __init__(self, schema):
-        self.__schema = schema
-
-    @property
-    def schema(self):
-        return self.__schema
-    
-    @schema.setter
-    def schema(self, schema):
-        """Set echema for future purpose
-
-        Args:
-            schema (marshmallow.Schema): Schema to prompt
-
-        Raises:
-            TypeError: Is not valid schema
-        """
-        if not (isinstance(schema, SchemaMeta) or isinstance(schema, Schema)):
-            raise TypeError('Schema to prompt must be {} or {}'.format(Schema.__class__, SchemaMeta.__class__))
+    def __init__(self, loader):
+        super().__init__(loader)
 
     def mlw_py(self, field):
         """Adapt the marshmallow field types to python primitives.
@@ -95,16 +81,19 @@ class PromptAdapter:
                 if isinstance(field.validate, validate.OneOf):
                     prompt_args['type'] = click.Choice(field.validate.choices)
             # Support text from metadata description
+            if 'missing' in field.metadata.keys():
+                logger.info(field)
+                prompt_args['text'] = field.metadata['description']
             if 'description' in field.metadata.keys(): prompt_args['text'] = field.metadata['description']
             # Support defaults If default is not missing map to default prompt
             if self._not_missing(field.default): prompt_args['default'] = field.default
             value = click.prompt(**prompt_args)
             return value
         except KeyboardInterrupt as e:
-            logger.info('\nClosed by user')
+            print('\nClosed by user')
             sys.exit()
         except click.exceptions.Abort as e:
-            logger.info('\nClosed by user')
+            print('\nClosed by user')
             sys.exit()
 
     def _not_missing(self, field):
@@ -138,14 +127,20 @@ class PromptAdapter:
         Returns:
             __model__.__class__: Built class instance
         """
+        if self.schema is None: raise TypeError('Please give an schema {}'.format(Schema))
         try:
             if context is None: context = OrderedDict({})
             if isinstance(context, dict): context = OrderedDict(context)
-            obj = self.schema.load(context)
-            # for field_name in errors:
-            return obj
+            self.schema.load(context)
+            return context
         except ValidationError as e:
             field_name = list(e.messages.keys()).pop(0)
             context[field_name] = self.ask_for(field_name)
             # Retry until the user input value is valid over field definition
             return self.gen_prompts(context)
+
+    def prompt_schema(self, schema_name, serialize=False, *args, **kwargs):
+        self.schema = schema_name
+        context = self.gen_prompts(*args, **kwargs)
+        if serialize: return self.schema.load(context)
+        return context

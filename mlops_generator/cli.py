@@ -8,6 +8,7 @@ from os import getcwd
 logger = logging.getLogger(__file__)
 logger.setLevel(logging.INFO)
 
+interface = Interface()
 
 @click.group()
 def main():
@@ -16,7 +17,6 @@ def main():
 
 @main.command('init', help='Initialize mlops project')
 @click.option('--tests', help='Add test suite', default=True, type = bool)
-@click.option('--licence', help='Add licence type', default=True, type = bool)
 def init(*args, **kwargs):
     """
     Initialize a project in the current working directory.
@@ -25,7 +25,7 @@ def init(*args, **kwargs):
         project_template ([type]): [description]
     """
     cwd = getcwd()
-    Interface.initialize(cwd, *args, **kwargs)
+    interface.initialize(cwd, *args, **kwargs)
     click.echo('Initialize mlops project')
 
 @main.command('add', help='Add configuration to project')

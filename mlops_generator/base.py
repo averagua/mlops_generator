@@ -1,6 +1,6 @@
 import logging
 from collections import OrderedDict
-from collections import deque
+
 import os
 from jinja2 import Environment, PackageLoader, FileSystemLoader, exceptions as Jinja2Exceptions
 from marshmallow import (
@@ -17,6 +17,7 @@ from marshmallow import (
     pre_dump
 )
 from marshmallow.exceptions import ValidationError
+from marshmallow.schema import SchemaMeta
 from types import GeneratorType
 from datetime import datetime
 
@@ -24,35 +25,46 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 import click
 import sys
+import json
 
-class BaseModel(object):
-    __global_dirs_queue = deque()
-    __global_files_queue = deque()
+class BaseLayer(object):
+    def __init__(self, loader):
+        self.__schema = None
+        self.loader = loader
 
+    @property
+    def schema(self):
+        if self.__schema is None: raise AttributeError('Schema not setted')
+        return self.__schema
+    
+    @schema.setter
+    def schema(self, schema_name):
+        """Set echema for future purpose
 
-    cwd = None
+        Args:
+            schema (marshmallow.Schema): Schema to prompt
 
-    def __init__(self):
-        self.__templates__ = None
-        self.renderized = False
+        Raises:
+            TypeError: Is not valid schema
+        """
+        schema = getattr(self.loader, schema_name)
+        if not (isinstance(schema, SchemaMeta) or isinstance(schema, Schema)):
+            raise TypeError('Schema to prompt must be {} or {}'.format(Schema.__class__, SchemaMeta.__class__))
+        self.__schema = schema()
 
     @property
     def templates(self):
-        return self.__templates__
+        return getattr(self.schema.opts, 'templates', None)
     
-    @templates.setter
-    def templates(self, template):
-        # if not isinstance(template, GeneratorType): raise TypeError('Must be {}'.format(GeneratorType))
-        self.__templates__ = template
+    @property
+    def parent_dir(self):
+        return getattr(self.schema.opts, 'parent_dir', None)
+        # return self.schema.opts.parent_dir
 
-    @classmethod
-    def global_dirs_queue(self):
-        return self.__global_dirs_queue
+class BaseModel(object):
 
-    @classmethod
-    def global_files_queue(self):
-        return self.__global_files_queue 
-
+    def __init__(self):
+        pass
 
     def render(self, enqueue=True):
         # Issue, you can renderize multiple times
@@ -73,12 +85,7 @@ class BaseModel(object):
             template = self.templates[template_key]
             return template
         except KeyError as e:
-            raise e
-
-    """def __str__(self):
-        print(self.__dict__)
-        result = self.__class__.__name__
-        return result"""
+            raise 
 
     def join_path(self, path):
         return os.path.join(self.cwd, path)
@@ -104,18 +111,6 @@ class BaseModel(object):
         logger.debug("File queued ({}): {}".format(len(self.__global_files_queue), path))
         return self
 
-    """
-    @property
-    def cwd(self):
-        # logger.info("Local current working directory {}".format(self.__cwd))
-        if self.__cwd is None:
-            raise AttributeError('Current directory not found')
-        return self.__cwd
-
-    @cwd.setter
-    def cwd(self, cwd):
-        self.__cwd = cwd
-    """
     @classmethod
     def chdir(cls, path):
         cls.cwd = os.path.join(cls.cwd, path)
@@ -159,7 +154,8 @@ class BaseOptSchema(SchemaOpts):
 
     def __init__(self, meta, **kwargs):
         SchemaOpts.__init__(self, meta, **kwargs)
-        self.templates = getattr(meta, "templates", None)
+        self.templates = getattr(meta, 'templates', None)
+        self.parent_dir = getattr(meta, 'parent_dir', 'root')
 
 class BaseSchema(Schema):
     """Base schema for define serializable and promptable methods"""
@@ -188,11 +184,24 @@ class BaseSchema(Schema):
     @post_load
     def make_object(self, context, **kwargs):
         """Resolve declared model after serialization"""
-        logger.info('Serializing object {}'.format(self))
+        # logger.info('Serializing object {}'.format(self))
         made_obj = self.__model__(**context)
-        # made_obj.templates = self._gen_templates(context)
         # made_obj.render()
         return made_obj
+
+    @pre_dump
+    def gen_render(self, obj, **kwargs):
+        logger.info('Generate the iterators for template')
+        # self._gen_templates(context)
+        logger.info(obj)
+        # logger.info(self.___)
+        return obj
+
+    @post_dump
+    def iter_render(self, context, **kwargs):
+        logger.info('Iter the templates and generate files queue')
+        logger.info(json.dumps(context, indent=2))
+        return context
 
     @classmethod
     def today(cls):
