@@ -2,19 +2,18 @@ import logging
 from collections import OrderedDict
 
 import os
-from jinja2 import Environment, PackageLoader, FileSystemLoader, exceptions as Jinja2Exceptions
 from marshmallow import (
     Schema,
     SchemaOpts,
     fields,
-    post_load,
     exceptions,
     utils,
     missing,
     validate,
-    post_dump,
     pre_load,
-    pre_dump
+    post_load,
+    pre_dump,
+    post_dump,
 )
 from marshmallow.exceptions import ValidationError
 from marshmallow.schema import SchemaMeta
@@ -61,94 +60,18 @@ class BaseLayer(object):
         return getattr(self.schema.opts, 'parent_dir', None)
         # return self.schema.opts.parent_dir
 
+    @property
+    def default_dirs(self):
+        return getattr(self.schema.opts, 'default_dirs', [])
+
 class BaseModel(object):
 
     def __init__(self):
         pass
 
-    def render(self, enqueue=True):
-        # Issue, you can renderize multiple times
-        if not self.templates is None:
-            # Unpack
-            self.templates = OrderedDict(self.templates)
-            for temp in self.__templates__: self.put_file(temp, self.get_content(temp))
-        # files = [{'path': temp, 'content': content} for temp, content in self.__templates__]
-        # logger.info(files)
-        # self.__global_files_queue.extend(files)
-        # for template, body in self.templates:
-        #     templates[template] = body['content']
-        # self.templates = templates
-        return self
-
-    def get_content(self, template_key):
-        try:
-            template = self.templates[template_key]
-            return template
-        except KeyError as e:
-            raise 
-
-    def join_path(self, path):
-        return os.path.join(self.cwd, path)
-
-
-    def put_dir(self, new_dir):
-        if self.cwd is None:
-            raise AttributeError('Current directory is not setted')
-        to_put = self.join_path(new_dir)
-        if os.path.exists(to_put):
-            error = FileExistsError(
-                'Directory {} already exists'.format(to_put))
-            logger.error(error)
-        self.__global_dirs_queue.append(to_put)
-        logger.debug("Path queued ({}): {}".format(len(self.__global_dirs_queue), to_put))
-
-    def put_file(self, filename, content):
-        path = self.join_path(filename)
-        self.__global_files_queue.append({
-            'path': path,
-            "content": content
-        })
-        logger.debug("File queued ({}): {}".format(len(self.__global_files_queue), path))
-        return self
-
-    @classmethod
-    def chdir(cls, path):
-        cls.cwd = os.path.join(cls.cwd, path)
-        logger.debug(
-            "Internal current working directory changed to {}".format(cls.cwd))
-            
-    def persist_dirs(self):
-        try:
-            new_dir = self.__global_dirs_queue.popleft()
-            logger.info('Directory created {}'.format(new_dir))
-            os.mkdir(new_dir)
-            self.persist_dirs()
-        except IndexError:
-            logger.info('Directories pesisted!')
-            return self
-        except Exception as error:
-            logger.error(error)
-            # In generic exception continue iteration
-            self.persist_dirs()
-    
-    def persist_files(self):
-        try:
-            new_file = self.__global_files_queue.popleft()
-            logger.info('File created {}'.format(new_file['path']))
-            with open(new_file['path'], 'w') as f: f.write(new_file['content'])
-            self.persist_files()
-
-        except IndexError:
-            logger.info('Files pesisted!')
-            return self
-        except Exception as error:
-            logger.error(error)
-            self.persist_files()
-
-    def persist(self):
-        self.persist_dirs()
-        self.persist_files()
-        return self
+    def __repr__(self):
+        attributes = '\t'+'\t'.join([attr+'='+ str(getattr(self, attr, None))+',\n' for attr in self.__dict__ ])
+        return """\n{}(\n{})""".format(self.__class__.__name__, attributes)
 
 class BaseOptSchema(SchemaOpts):
 
@@ -156,25 +79,13 @@ class BaseOptSchema(SchemaOpts):
         SchemaOpts.__init__(self, meta, **kwargs)
         self.templates = getattr(meta, 'templates', None)
         self.parent_dir = getattr(meta, 'parent_dir', 'root')
+        self.default_dirs = getattr(meta, 'default_dirs', [])
 
 class BaseSchema(Schema):
     """Base schema for define serializable and promptable methods"""
     # Build in model
     __model__ = BaseModel 
     OPTIONS_CLASS = BaseOptSchema
-    try:
-        loader = PackageLoader('mlops_generator', 'templates')
-        logger.debug('Package loader')
-    except ImportError as error:
-        logger.debug('Filesystem loader')
-        loader = FileSystemLoader("mlops_generator/mlops_generator/templates")
-    except Exception as error:
-        raise error
-
-    __TEMPLATE_ENGINE = Environment(
-        loader=loader,
-        trim_blocks=False,
-    )
 
     format_date ='%Y-%m-%d %H:%M'
 
@@ -188,6 +99,8 @@ class BaseSchema(Schema):
         made_obj = self.__model__(**context)
         # made_obj.render()
         return made_obj
+
+
 
     @pre_dump
     def gen_render(self, obj, **kwargs):
@@ -208,17 +121,3 @@ class BaseSchema(Schema):
         """Standar today date."""
         return datetime.today().strftime(cls.format_date)
 
-    def _gen_templates(self, context):
-        try:
-            for template in self.opts.templates:
-                gtemplate = self.__TEMPLATE_ENGINE.get_template(template)
-                yield template, gtemplate.render(context)
-        except Jinja2Exceptions.TemplateNotFound as error:
-            logger.error(
-                'Error getting template {} - {}'.format(error.message, type(error)))
-        except Jinja2Exceptions.TemplateSyntaxError as error:
-            message = "{} in line {} - {}".format(
-                error.message, error.lineno, error.source.split('\n')[error.lineno - 1])
-            logger.error(message)
-        except Exception as error:
-            logger.exception(error)

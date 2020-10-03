@@ -81,10 +81,10 @@ class PromptAdapter(BaseLayer):
                 if isinstance(field.validate, validate.OneOf):
                     prompt_args['type'] = click.Choice(field.validate.choices)
             # Support text from metadata description
-            if 'missing' in field.metadata.keys():
+            if 'default' in field.metadata.keys():
                 logger.info(field)
                 prompt_args['text'] = field.metadata['description']
-            if 'description' in field.metadata.keys(): prompt_args['text'] = field.metadata['description']
+            prompt_args['text'] = field.metadata['description']
             # Support defaults If default is not missing map to default prompt
             if self._not_missing(field.default): prompt_args['default'] = field.default
             value = click.prompt(**prompt_args)
