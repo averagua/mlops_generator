@@ -11,11 +11,12 @@ logging.basicConfig(level=logging.INFO)
 
 class PresentationLayer(BaseLayer):
     __root_key = 'root'
-    def __init__(self, loader, root):
+    def __init__(self, loader, root, config_file='mlops-configs.json'):
         super().__init__(loader)
         self.__cwd = os.getcwd()
         self.__events_queue = deque()
         self.__root = os.path.join(self.__cwd, root)
+        self.config_file = config_file
         if not os.path.exists(self.__root): self.__push_event({ 'type': 'new_dir', 'data': {'dir': self.__root}})
         logger.info('Persistence layer initialized in current root directory {}'.format(self.__root))
         try:
@@ -100,7 +101,7 @@ class PresentationLayer(BaseLayer):
             logger.exception(error)
 
 
-    def render(self, obj):
+    def render(self, obj, persist=True):
         context = self.schema.dump(obj)
         logger.info(json.dumps(context))
         while True:
@@ -110,13 +111,17 @@ class PresentationLayer(BaseLayer):
                 logger.info(output_path)
                 if os.path.exists(output_path): logger.warning('File already exists')
                 elif event['type'] is 'new_dir':
-                    os.mkdir(output_path)
+                    if persist: os.mkdir(output_path)
                 elif event['type'] is 'render':
                     file_content = event['data']['template'].render(context)
-                    with open(output_path, 'w') as f: f.write(file_content)
+                    if persist:
+                        with open(output_path, 'w') as f: f.write(file_content)
                 else:
                     pass
             except IndexError:
-                return 
-    def persist(self):
-        pass
+                logger.debug('Stop iteration')
+                config_path = self.resolve_path(self.config_file)
+                if persist:
+                    with open(config_path, 'w') as f: f.write(json.dumps(context, indent=2))
+                return context
+        return context

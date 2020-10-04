@@ -17,6 +17,7 @@ def main():
 
 @main.command('init', help='Initialize mlops project')
 @click.option('--tests', help='Add test suite', default=True, type = bool)
+@click.option('--setup', help='Add setup entrypoint', default=True, type=bool)
 def init(*args, **kwargs):
     """
     Initialize a project in the current working directory.

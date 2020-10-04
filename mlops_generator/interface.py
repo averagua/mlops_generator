@@ -35,7 +35,7 @@ class Interface:
         try:
             prompt = PromptAdapter(self.loader)
             project = prompt.prompt_schema('ProjectConfigsSchema', context={
-                'name':  'covid2',
+                'name':  'covid',
                 'package_name': 'covid',
                 'email': 'veragua.alb@gmail.com',
                 'description': 'description',
@@ -48,12 +48,19 @@ class Interface:
             presentation_layer.push_job('ProjectConfigsSchema')
             # Prompt setup schema, set the object in the project, change the current schema in presentation layer and push its templates.
             if setup:
+                # Prompt setup questions
                 setup = prompt.prompt_schema('SetupSchema', context={'entrypoint': 'setup.py'}, serialize=True)
+                # Add setup to project definition
+                project.setup = setup
+                # Push templates and directories from stup schema
                 presentation_layer.push_job('SetupSchema')
+            # Push templates and directories for the default schameas
             presentation_layer.push_job('ArchitectureSchema')
             presentation_layer.push_job('ComponentSchema')
             presentation_layer.push_job('PipelineSchema')
             presentation_layer.schema = 'ProjectConfigsSchema'
-            presentation_layer.render(project)
+            context = presentation_layer.render(project, persist=True)
+            logger.info(json.dumps(context))
+
         except Exception as e:
             logger.exception(e)
