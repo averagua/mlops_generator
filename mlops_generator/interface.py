@@ -35,7 +35,7 @@ class Interface:
         try:
             prompt = PromptAdapter(self.loader)
             project = prompt.prompt_schema('ProjectConfigsSchema', context={
-                'name':  'covid',
+                'name':  'covid-mlops',
                 'package_name': 'covid',
                 'email': 'veragua.alb@gmail.com',
                 'description': 'description',

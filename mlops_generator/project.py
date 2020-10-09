@@ -107,12 +107,13 @@ class SetupSchema(BaseSchema):
         templates = ['setup.py']
 
 class ProjectConfigs(BaseModel):
-    def __init__(self, name, author, email, description, package_name, creation_date, license_type, version, architecture, setup=None, deploy=None, tests=None):
+    def __init__(self, name, author, email, description, package_name, creation_date, license_type, version, architecture, python_interpreter, setup=None, deploy=None, tests=None):
         # Serializable data
         self.name = name
         self.author = author
         self.email = email
         self.package_name = package_name
+        self.python_interpreter = python_interpreter
         self.description = description
         self.license_type = license_type
         self.deploy = deploy
@@ -139,10 +140,11 @@ class ProjectConfigsSchema(BaseSchema):
     setup = fields.Nested(SetupSchema, default=None, description="Setup configurations")
     deploy = fields.Nested(DeploySchema, default=None, description="CI/CD deployment configurations")
     tests = fields.Nested(TestSChema, default=None, description="Testing framework")
+    python_interpreter = fields.Str(description='Python interpreter', missing='python3', default='python3')
     # 2.- Define the object to deserialize
     
     __model__ = ProjectConfigs
     # 3.- Define custom templates and directories
     class Meta:
-        templates = ['LICENSE', '.gitignore']
+        templates = ['LICENSE', '.gitignore', 'requirements.txt']
         default_dirs = ['deploy', 'docs', 'notebooks', 'references', 'tests', '{{package_name}}']
