@@ -3,7 +3,7 @@ from collections import OrderedDict, deque
 from marshmallow.schema import Schema, SchemaMeta
 from marshmallow import validate, utils
 from marshmallow.exceptions import ValidationError
-from base import BaseLayer
+from mlops_generator.base import BaseLayer
 
 import importlib
 import sys
@@ -38,8 +38,8 @@ class PromptAdapter(BaseLayer):
         'DateTime': str
     } 
 
-    def __init__(self, loader):
-        super().__init__(loader)
+    def __init__(self):
+        super().__init__(package="mlops_generator.project")
 
     def mlw_py(self, field):
         """Adapt the marshmallow field types to python primitives.

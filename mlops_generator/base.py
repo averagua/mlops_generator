@@ -1,7 +1,8 @@
 import logging
 from collections import OrderedDict
+from importlib import import_module
 
-import os
+from pathlib import Path
 from marshmallow import (
     Schema,
     SchemaOpts,
@@ -19,6 +20,7 @@ from marshmallow.exceptions import ValidationError
 from marshmallow.schema import SchemaMeta
 from types import GeneratorType
 from datetime import datetime
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -27,9 +29,9 @@ import sys
 import json
 
 class BaseLayer(object):
-    def __init__(self, loader):
+    def __init__(self, package:str):
         self.__schema = None
-        self.loader = loader
+        self.loader = import_module(package)
 
     @property
     def schema(self):
@@ -46,23 +48,18 @@ class BaseLayer(object):
         Raises:
             TypeError: Is not valid schema
         """
-        schema = getattr(self.loader, schema_name)
+        schema = self.get_schema(schema_name)
         if not (isinstance(schema, SchemaMeta) or isinstance(schema, Schema)):
             raise TypeError('Schema to prompt must be {} or {}'.format(Schema.__class__, SchemaMeta.__class__))
         self.__schema = schema()
 
-    @property
-    def templates(self):
-        return getattr(self.schema.opts, 'templates', None)
+    def get_schema(self, schema_name):
+        schema = getattr(self.loader, schema_name, None)
+        if schema is None: raise ModuleNotFoundError('{} not found'.format(schema_name))
+        return schema
     
-    @property
-    def parent_dir(self):
-        return getattr(self.schema.opts, 'parent_dir', None)
-        # return self.schema.opts.parent_dir
-
-    @property
-    def default_dirs(self):
-        return getattr(self.schema.opts, 'default_dirs', [])
+    def create_schema(self, schema_name):
+        return self.get_schema(schema_name)()
 
 class BaseModel(object):
 
@@ -78,7 +75,7 @@ class BaseOptSchema(SchemaOpts):
     def __init__(self, meta, **kwargs):
         SchemaOpts.__init__(self, meta, **kwargs)
         self.templates = getattr(meta, 'templates', None)
-        self.parent_dir = getattr(meta, 'parent_dir', 'root')
+        self.path = getattr(meta, 'path', '')
         self.default_dirs = getattr(meta, 'default_dirs', [])
 
 class BaseSchema(Schema):
@@ -95,26 +92,10 @@ class BaseSchema(Schema):
     @post_load
     def make_object(self, context, **kwargs):
         """Resolve declared model after serialization"""
-        # logger.info('Serializing object {}'.format(self))
+        logger.info('Serializing object {}'.format(self))
         made_obj = self.__model__(**context)
         # made_obj.render()
         return made_obj
-
-
-
-    @pre_dump
-    def gen_render(self, obj, **kwargs):
-        logger.info('Generate the iterators for template')
-        # self._gen_templates(context)
-        logger.info(obj)
-        # logger.info(self.___)
-        return obj
-
-    @post_dump
-    def iter_render(self, context, **kwargs):
-        logger.info('Iter the templates and generate files queue')
-        logger.info(json.dumps(context, indent=2))
-        return context
 
     @classmethod
     def today(cls):

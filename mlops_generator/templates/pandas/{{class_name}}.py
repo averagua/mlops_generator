@@ -15,10 +15,6 @@ class {{class_name}}Accessor:
     def __init__(self, __obj):
         """
         __init__ Constructor for pandas DataFrame extension like dependency injection.
-        Usage:
-            # Define a pandas DataFrame
-            df = pd.DataFrame(data, columns, indexes)
-            result = df.{{accessor_name}}_accessor.foo()
         Args:
             __obj (DataFrame): Dataframe in context
         """
@@ -26,7 +22,11 @@ class {{class_name}}Accessor:
 
     def foo(self):
         """
-        foo Extend here your implementations
+        Extend here your own implementations
+        Usage:
+            # Define a pandas DataFrame
+            df = pd.DataFrame(data, columns, indexes)
+            result = df.{{accessor_name}}_accessor.foo()
         Raises:
             NotImplementedError: [description]
         """

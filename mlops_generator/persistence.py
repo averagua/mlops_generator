@@ -1,127 +1,167 @@
-import os
-import logging
+from typing import Union, Optional, Dict
+from pathlib import Path
+
 from collections import deque
-from base import BaseLayer
 import json
-from jinja2 import Environment, PackageLoader, FileSystemLoader, exceptions as Jinja2Exceptions
+from jinja2 import (
+    Environment,
+    PackageLoader,
+    FileSystemLoader,
+    exceptions as Jinja2Exceptions,
+    Template,
+)
+
+from mlops_generator.base import BaseLayer, BaseSchema
+from collections import OrderedDict
+
+import logging
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
+
+try:
+    loader = PackageLoader("mlops_generator", "templates")
+    logger.info("Package loader")
+except ImportError as error:
+    logger.info("Filesystem loader")
+    loader = FileSystemLoader("mlops_generator/mlops_generator/templates")
+except Exception as error:
+    logger.error(error)
+    raise error
+
+TEMPLATE_ENGINE = Environment(
+    loader=loader,
+    trim_blocks=False,
+)
 
 
 class PresentationLayer(BaseLayer):
-    __root_key = 'root'
-    def __init__(self, loader, root, config_file='mlops-configs.json'):
-        super().__init__(loader)
-        self.__cwd = os.getcwd()
-        self.__events_queue = deque()
-        self.__root = os.path.join(self.__cwd, root)
-        self.config_file = config_file
-        if not os.path.exists(self.__root): self.__push_event({ 'type': 'new_dir', 'data': {'dir': self.__root}})
-        logger.info('Persistence layer initialized in current root directory {}'.format(self.__root))
-        try:
-            loader = PackageLoader('mlops_generator', 'templates')
-            logger.debug('Package loader')
-        except ImportError as error:
-            logger.debug('Filesystem loader')
-            loader = FileSystemLoader("mlops_generator/mlops_generator/templates")
-        except Exception as error:
-            raise error
 
-        self.__TEMPLATE_ENGINE = Environment(
-            loader=loader,
-            trim_blocks=False,
+    RENDER = "render"
+    NEW_DIR = "new_dir"
+    ENCODING = "utf-8"
+
+    def __init__(self, cwd: Path, config_file="mlops-configs.json"):
+        super().__init__(package="mlops_generator.project")
+        self.__cwd = cwd
+        self.__events_queue = deque()
+        self.config_file = config_file
+        logger.info(
+            "Persistence layer initialized in current root directory {}".format(
+                self.__cwd
+            )
         )
 
     @property
-    def root(self):
-        return self.__root
-    
-    @property
-    def events_queue(self):
-        return self.__events_queue
+    def handler(self):
+        return {
+            self.RENDER: self.template_handler,
+            self.NEW_DIR: self.directory_handler,
+        }
 
+    def handle(self, event, *args, **kwargs):
+        try:
+            self.handler.get(event["type"], lambda: AssertionError("Event not found"))(
+                event, *args, **kwargs
+            )
+        except Exception as error:
+            logger.error(error)
 
-    def push_job(self):
-        pass
+    def render_string(self, string: str, context: OrderedDict) -> str:
+        return TEMPLATE_ENGINE.from_string(string).render(context)
 
-    def __push_event(self, data):
-        if isinstance(data, list): self.__events_queue.extend(data)
-        else: self.__events_queue.append(data)
+    def template_handler(self, event: dict, context: OrderedDict, *args, **kwargs):
+        file_content = event["value"].render(context)
+        path = self.render_string(string=str(event["path"]), context=context)
+        path = Path(path)
+        if path.exists():
+            logger.warning("{} already exists".format(path.parts[:2]))
+        else:
+            logger.info("Saving renderized {}".format(path))
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(file_content, encoding=self.ENCODING)
 
-    def resolve_path(self, path):
-        # logger.info('Where im resolving? {}'.format(self.root))
-        if not self.parent_dir is self.__root_key:
-            path = os.path.join(self.parent_dir, path)
-        resolved_path = os.path.join(self.root, path)
-        return resolved_path
-
-    def push_directories(self):
-        default_dirs = self.default_dirs
-        event_type = 'new_dir'
-        default_dirs = [self.resolve_path(default_dir) for default_dir in default_dirs ]
-        [ self.__push_event({
-            'type': event_type,
-            'data': {
-                'dir': directory
-            }
-        }) for directory in default_dirs ]
-
-    def push_templates(self):
-        if not self.parent_dir is self.__root_key: logger.info(self.parent_dir)
-        if not self.templates is None:
-            for template in self.templates:
-                events = {
-                        'type': 'render',
-                        'data': {
-                            'template': self.get_template(template),
-                            'dir': self.resolve_path(template)
-                        }
-                    }
-                self.__push_event(events)
-        else: logger.warning('No templates to push in this schema')
-
-    def push_job(self, schema_name):
-        self.schema = schema_name
-        self.push_directories()
-        self.push_templates()
-        return self
+    def directory_handler(self, event: dict, context: OrderedDict, *args, **kwargs):
+        path = self.render_string(str(event["value"]), context)
+        path = Path(path)
+        path.mkdir(parents=True, exist_ok=False)
 
     def get_template(self, template_name):
         try:
-            return self.__TEMPLATE_ENGINE.get_template(template_name)
+            return TEMPLATE_ENGINE.get_template(template_name)
         except Jinja2Exceptions.TemplateNotFound as error:
             logger.error(
-                'Error getting template {} - {}'.format(error.message, type(error)))
+                "Error getting template {} - {}".format(error.message, type(error))
+            )
+            raise error
         except Jinja2Exceptions.TemplateSyntaxError as error:
             message = "{} in line {} - {}".format(
-                error.message, error.lineno, error.source.split('\n')[error.lineno - 1])
+                error.message, error.lineno, error.source.split("\n")[error.lineno - 1]
+            )
             logger.error(message)
         except Exception as error:
             logger.exception(error)
 
+    def get_template_events(self, schema):
+        templates = schema.opts.templates
+        templates = [
+            {
+                "type": self.RENDER,
+                "value": self.get_template(template),
+                "path": Path(self.cwd, schema.opts.path, template),
+            }
+            for template in templates
+        ]
+        return [template for template in templates if templates]
 
-    def render(self, obj, persist=True):
-        context = self.schema.dump(obj)
-        logger.info(json.dumps(context))
+    def get_directory_events(self, schema):
+        return [
+            {"type": self.NEW_DIR, "value": self.cwd / directory}
+            for directory in schema.opts.default_dirs
+        ]
+
+    @property
+    def cwd(self):
+        return self.__cwd
+
+    @property
+    def events_queue(self) -> deque:
+        """Queued events"""
+        return self.__events_queue
+
+    def push_event(self, data):
+        if isinstance(data, list):
+            self.__events_queue.extend(data)
+        else:
+            self.__events_queue.append(data)
+
+    def push_job(self, schema_name, return_schema: bool = False):
+        logger.info("Pushing {} schema job".format(schema_name))
+        schema = self.get_schema(schema_name)
+        template_events = self.get_template_events(schema)
+        directory_events = self.get_directory_events(schema)
+        self.push_event(template_events)
+        self.push_event(directory_events)
+        if return_schema:
+            return schema()
+        return self
+
+    def render(self, context, persist=True):
+        logger.info("Trying to renderize source code in {}".format(self.cwd))
+        logger.info(json.dumps(context, indent=2))
+        self.cwd.mkdir(parents=True, exist_ok=True)
         while True:
             try:
                 event = self.__events_queue.popleft()
-                output_path = self.__TEMPLATE_ENGINE.from_string(event['data']['dir']).render(context)
-                logger.info(output_path)
-                if os.path.exists(output_path): logger.warning('File already exists')
-                elif event['type'] is 'new_dir':
-                    if persist: os.mkdir(output_path)
-                elif event['type'] is 'render':
-                    file_content = event['data']['template'].render(context)
-                    if persist:
-                        with open(output_path, 'w') as f: f.write(file_content)
-                else:
-                    pass
+                self.handle(event, context)
             except IndexError:
-                logger.debug('Stop iteration')
-                config_path = self.resolve_path(self.config_file)
-                if persist:
-                    with open(config_path, 'w') as f: f.write(json.dumps(context, indent=2))
+                logger.info("Renderization finished")
+                config_path = self.cwd / self.config_file
+                config_path.write_text(json.dumps(context, indent=2))
                 return context
-        return context
+
+    @classmethod
+    def from_config(cls, cwd: Path, config_file:str="mlops-configs.json"):
+        path = cwd / config_file
+        context = path.read_text()
+        logger.info(context)

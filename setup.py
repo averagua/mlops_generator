@@ -10,7 +10,11 @@ with open('README.rst') as readme_file:
 with open('HISTORY.rst') as history_file:
     history = history_file.read()
 
-requirements = ['Click>=7.0', ]
+requirements = [
+    'click>=7.0',
+    'marshmallow==3.9.1',
+    'jinja2==2.11'
+    ]
 
 setup_requirements = ['pytest-runner', ]
 
@@ -45,6 +49,7 @@ setup(
     name='mlops_generator',
     packages=find_packages(include=['mlops_generator', 'mlops_generator.*']),
     setup_requires=setup_requirements,
+    package_data={'templates': ['*']},
     test_suite='tests',
     tests_require=test_requirements,
     url='https://github.com/averagua/mlops_generator',
