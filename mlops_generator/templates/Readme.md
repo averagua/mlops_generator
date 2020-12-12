@@ -13,4 +13,4 @@ python {{ setup["entrypoint"] }} install
 
 * License {{license_type}}
 
-* Contact to {{author}} - {{email}}
+* Contact to {{company}} - {{email}}

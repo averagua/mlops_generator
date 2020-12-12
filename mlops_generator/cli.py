@@ -21,7 +21,7 @@ class InitCommand(Command):
             self.setup,
             self.tests,
             self.dockerfile,
-            self.cloudbuild
+            self.deploy
         ])
 
     @property
@@ -37,36 +37,35 @@ class InitCommand(Command):
             type=bool,
             help="Add setup entrypoint",
             is_flag=True,
-            default=True,
+            default=False,
         )
 
     @property
     def dockerfile(self):
         """Initialice dockerfile"""
         return Option(
-            ("--dockerfile",),
+            ("--docker",),
             type=bool,
             help="Add setup entrypoint",
             is_flag=True,
-            default=True,
+            default=False,
         )
 
     @property
-    def cloudbuild(self):
-        """Initialice dockerfile"""
+    def deploy(self):
+        """Initialice pipeline CI"""
         return Option(
-            ("--cloudbuild",),
+            ("--deploy",),
             type=bool,
             help="Add setup entrypoint",
             is_flag=True,
-            default=True,
+            default=False,
         )
 
 @click.group()
 def main():
     """Commmand Line Interface for MLOps lifecycle."""
     pass
-
 
 @main.command("init", help="Initialize mlops project", cls=InitCommand)
 def init(*args, **kwargs):
@@ -76,29 +75,32 @@ def init(*args, **kwargs):
     Args:
         project_template ([type]): [description]
     """
-    cwd = Path().cwd()
-    Interface().initialize(cwd, *args, **kwargs)
-    click.echo("Initialize mlops project")
+    try:
+        cwd = Path().cwd()
+        Interface().initialize(cwd, *args, **kwargs)
+        click.echo("Initialize mlops project")
+    except Exception as error:
+        logger.error(error)
+        sys.exit(0)
 
 
 @main.command("add", help="Add configuration to project", cls=InitCommand)
-def add(*args, **kwargs):
+@click.option("--project-dir", help="Give project name if you want", default="")
+def add(project_dir, *args, **kwargs):
     """Add a configuration to the current project."""
-    cwd = Path().cwd()
-    Interface().add(cwd, *args, **kwargs)
-
+    try:
+        cwd = Path().cwd() / project_dir
+        Interface().add(cwd, *args, **kwargs)
+    except Exception as error:
+        logger.exception(error)
+        sys.exit(0)
 
 @main.command(
     "component",
     help="Generate a component",
     context_settings=dict(ignore_unknown_options=True),
 )
-@click.option(
-    "--name",
-    help="Module name",
-    prompt="Type a name for your component",
-    show_default=True,
-)
+@click.option("--project-dir", help="Give project name if you want", default="")
 @click.option(
     "--module",
     help="Module type to generate",
@@ -107,14 +109,15 @@ def add(*args, **kwargs):
     default="pandas",
     show_default=True,
 )
-@click.option("--out-filename", type=str, help="Output path for the filename")
-def component(name, module, out_filename):
-    """CLI for generate MLOps archetypes."""
-    click.echo("Adding component... {} ".format(module))
-    print(out_filename)
-    # if module == 'pandas':
-    #    pandas_extension(name, out_filename)
 
+def component(project_dir, module, *args, **kwargs):
+    """CLI for generate MLOps archetypes."""
+    try:
+        cwd = Path().cwd() / project_dir
+        Interface().component(cwd, module, *args, **kwargs)
+    except Exception as error:
+        logger.exception(error)
+        sys.exit(0)
 
 @main.command(
     "pipeline",
@@ -125,6 +128,5 @@ def pipeline():
     """Generate a pipeline."""
     pass
 
-
 if __name__ == "__main__":
-    sys.exit(main())  # pragma: no cover
+    main()

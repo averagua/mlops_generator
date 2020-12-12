@@ -1,7 +1,7 @@
 """
 {{class_name}} Accessor Module
 version {{version}} - {{date}}
-Author: <AUTHOR>
+company: <company>
 """
 
 import pandas as pd

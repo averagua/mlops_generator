@@ -29,8 +29,37 @@ class PipelineSchema(BaseSchema):
         path = "src/{{package_name}}/pipelines"
 
 
+class SklearnModel(BaseModel):
+    def __init__(self, class_name, estimator_type):
+        self.class_name = class_name
+        self.estimator_type = estimator_type
+
+
+class SklearnSchema(BaseSchema):
+    __model__ = SklearnModel
+    class_name = fields.Str(description="Component class name", required=True)
+    estimator_type = fields.Str(
+        description="Sklearn base type",
+        required=True,
+        validate=validate.OneOf(
+            [
+                "BaseEstimator",
+                "RegressorMixin",
+                "TransformerMixin",
+                "ClassifierMixin",
+                "ClusterMixin",
+                "DensityMixin"
+            ]
+        ),
+    )
+
+    class Meta:
+        templates = ["components/sklearn/{{class_name}}.py"]
+        path = "src/{{package_name}}"
+
+
 class ComponentModel(BaseModel):
-    def __init__(self, component_name:str):
+    def __init__(self, component_name: str):
         self.component_name = component_name
         self.component_classname = component_name[0].upper()
 
@@ -69,7 +98,7 @@ class SetupSchema(BaseSchema):
     __model__ = SetupConfig
 
     class Meta:
-        templates = ["setup.py"]
+        templates = ["setup.py", "setup.cfg"]
 
 
 class TestsModel(BaseModel):
@@ -80,22 +109,21 @@ class TestsModel(BaseModel):
 class TestSChema(BaseSchema):
     __model__ = TestsModel
     framework = fields.Str(
-        required=True,
-        description="Framework for run test, ML/AI tests included",
-        default="pytest",
+        description="Framework for run test",
+        missing=None,
     )
 
 
 class DockerfileModel(BaseModel):
-    def __init__(self, project_name, registry):
-        self.project_name = project_name
+    def __init__(self, registry):
         self.registry = registry
 
 
 class DockerfileSchema(BaseSchema):
-    project_name = fields.Str(required=True, description="Project Name")
     registry = fields.Str(
-        required=True, description="Docker registry url", default="gcr.io"
+        required=True,
+        description="Docker registry url",
+        validate=validate.OneOf(["gcr.io"]),
     )
     __model__ = DockerfileModel
 
@@ -103,15 +131,19 @@ class DockerfileSchema(BaseSchema):
         templates = ["Dockerfile", ".dockerignore"]
 
 
-class CloudbuildModel(BaseModel):
-    def __init__(self, project_name, platform):
-        self.project_name = project_name
-        self.framework = 'gcp'
+class DeployModel(BaseModel):
+    def __init__(self, platform):
+        self.platform = platform
 
 
-class CloudbuildSchema(BaseSchema):
-    project_name = fields.Str(required=True, description="Project Name")
-    __model__ = CloudbuildModel
+class DeploySchema(BaseSchema):
+    platform = fields.Str(
+        required=True,
+        description="CI pipeline platform",
+        validate=validate.OneOf(["GCP"]),
+    )
+
+    __model__ = DeployModel
 
     class Meta:
         templates = ["cloudbuild.yaml"]
@@ -120,23 +152,23 @@ class CloudbuildSchema(BaseSchema):
 class Architecture(BaseSchema):
     def __init__(
         self,
-        components: list = [],
-        pipelines: list = [],
-        docker: dict = {},
-        cloudbuild: dict = {},
+        docker: dict = None,
+        deploy: dict = None,
+        components: list = None,
+        pipelines: list = None,
     ):
         self.components = components
         self.pipelines = pipelines
         self.docker = docker
-        self.cloudbuild = cloudbuild
+        self.deploy = deploy
 
 
 class ArchitectureSchema(BaseSchema):
     __model__ = Architecture
-    components = fields.Nested(ComponentSchema, many=True, missing=[])
-    pipelines = fields.Nested(PipelineSchema, many=True, missing=[])
-    docker = fields.Nested(DockerfileSchema, missing={})
-    cloudbuild = fields.Nested(CloudbuildSchema, missing={})
+    components = fields.Nested(ComponentSchema, many=True, missing=None)
+    pipelines = fields.Nested(PipelineSchema, many=True, missing=None)
+    docker = fields.Nested(DockerfileSchema, missing=None, many=False, default=None)
+    deploy = fields.Nested(DeploySchema, many=False, default=None, missing=None)
 
     class Meta:
         path = "src/{{package_name}}"
@@ -147,7 +179,7 @@ class ProjectConfigs(BaseModel):
     def __init__(
         self,
         project_name,
-        author,
+        company,
         email,
         description,
         package_name,
@@ -156,19 +188,17 @@ class ProjectConfigs(BaseModel):
         version,
         architecture,
         python_interpreter,
-        setup=None,
-        deploy=None,
-        tests=None,
+        setup,
+        tests,
     ):
         # Serializable data
         self.project_name = project_name
-        self.author = author
+        self.company = company
         self.email = email
         self.package_name = package_name
         self.python_interpreter = python_interpreter
         self.description = description
         self.license_type = license_type
-        self.deploy = deploy
         self.creation_date = creation_date
         self.version = version
         self.setup = setup
@@ -176,19 +206,28 @@ class ProjectConfigs(BaseModel):
         self.architecture = architecture
 
 
-class ProjectConfigsSchema(BaseSchema):
+class ProjectSchema(BaseSchema):
     # 1.- Config declaration
-    project_name = fields.Str(required=True, description="Project Name")
-    package_name = fields.Str(required=True, description="Pypi Package name")
-    author = fields.Str(required=True, description="Author name")
-    email = fields.Email(required=True, description="Contact email")
+    project_name = fields.Str(
+        required=True, description="Project Name", default="example_project"
+    )
+    package_name = fields.Str(
+        required=True, description="Pypi Package name", default="package_name"
+    )
+    company = fields.Str(required=True, description="Company name", default="company")
+    email = fields.Email(
+        required=True, description="Contact email", default="contact@company.org"
+    )
     description = fields.Str(
         required=True,
-        description="Project description",
+        description="Project description, max. 200",
         validate=validate.Length(max=280),
+        default="Project description",
     )
     creation_date = fields.DateTime(
-        format=BaseSchema.format_date, default=BaseSchema.today()
+        format=BaseSchema.format_date,
+        missing=BaseSchema.today(),
+        default=BaseSchema.today(),
     )
     version = fields.Str(default="1.0.0", required=True, description="Package version")
     # default="No license file",
@@ -198,19 +237,22 @@ class ProjectConfigsSchema(BaseSchema):
         default="No license file",
         description="Licence type",
     )
+    python_interpreter = fields.Str(
+        required=True,
+        description="Python interpreter",
+        default="python3",
+        validate=validate.OneOf(["python3"]),
+    )
+    setup = fields.Nested(SetupSchema, description="Setup configurations", missing=None)
 
     architecture = fields.Nested(
         ArchitectureSchema,
         description="MLOps architecture project definition",
+        default=None,
         missing=Architecture(),
     )
-    setup = fields.Nested(SetupSchema, default=None, description="Setup configurations")
-    deploy = fields.Nested(
-        CloudbuildSchema, default=None, description="CI pipeline configurations"
-    )
-    tests = fields.Nested(TestSChema, default=None, description="Testing framework")
-    python_interpreter = fields.Str(
-        description="Python interpreter", missing="python3", default="python3"
+    tests = fields.Nested(
+        TestSChema, missing=None, default=None, description="Testing framework"
     )
     # 2.- Define the object to deserialize
 
@@ -222,6 +264,7 @@ class ProjectConfigsSchema(BaseSchema):
             ".gitignore",
             "requirements.txt",
             "Readme.md",
+            "Makefile",
         ]
         default_dirs = [
             "src/{{package_name}}",

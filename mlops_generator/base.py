@@ -66,9 +66,9 @@ class BaseModel(object):
     def __init__(self):
         pass
 
-    def __repr__(self):
-        attributes = '\t'+'\t'.join([attr+'='+ str(getattr(self, attr, None))+',\n' for attr in self.__dict__ ])
-        return """\n{}(\n{})""".format(self.__class__.__name__, attributes)
+    # def __repr__(self):
+    #     attributes = '\t'+'\t'.join([attr+'='+ str(getattr(self, attr, None))+',\n' for attr in self.__dict__ ])
+    #     return """\n{}(\n{})""".format(self.__class__.__name__, attributes)
 
 class BaseOptSchema(SchemaOpts):
 
@@ -84,7 +84,7 @@ class BaseSchema(Schema):
     __model__ = BaseModel 
     OPTIONS_CLASS = BaseOptSchema
 
-    format_date ='%Y-%m-%d %H:%M'
+    format_date ='%B %d %X %Y'
 
     class Meta:
         ordered = True
@@ -100,5 +100,5 @@ class BaseSchema(Schema):
     @classmethod
     def today(cls):
         """Standar today date."""
-        return datetime.today().strftime(cls.format_date)
+        return datetime.today()#.strftime(cls.format_date)
 

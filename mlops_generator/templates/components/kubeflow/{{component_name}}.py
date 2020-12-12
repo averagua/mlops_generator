@@ -1,5 +1,5 @@
 from kfp.dsl import ContainerOp
-from kfp.dsl.types import Integer, Float, Dict, String, List
+from kfp.dsl.types import Integer, Float, Dict, String, List, 
 
 _BASE_IMAGE = "{{docker.registry}}.io/{{project_name}}/{{project_package}}:latest"
 

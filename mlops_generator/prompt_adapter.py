@@ -75,6 +75,8 @@ class PromptAdapter(BaseLayer):
             field = self.schema._declared_fields[field_name]
             ptype = self.mlw_py(field)
             prompt_args['type'] = ptype
+            if not self._not_missing(field.validate):
+                logger.info('Not supported?')
             # Support marshmallow validation.
             if self._not_missing(field.validate):
                 # One is like choices
@@ -89,10 +91,10 @@ class PromptAdapter(BaseLayer):
             if self._not_missing(field.default): prompt_args['default'] = field.default
             value = click.prompt(**prompt_args)
             return value
-        except KeyboardInterrupt as e:
+        except KeyboardInterrupt:
             print('\nClosed by user')
             sys.exit()
-        except click.exceptions.Abort as e:
+        except click.exceptions.Abort:
             print('\nClosed by user')
             sys.exit()
 

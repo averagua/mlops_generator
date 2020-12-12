@@ -75,9 +75,9 @@ class PresentationLayer(BaseLayer):
         path = self.render_string(string=str(event["path"]), context=context)
         path = Path(path)
         if path.exists():
-            logger.warning("{} already exists".format(path.parts[:2]))
+            logger.error("{} already exists".format(path.name))
         else:
-            logger.info("Saving renderized {}".format(path))
+            logger.info("Saving {}".format(path))
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(file_content, encoding=self.ENCODING)
 
@@ -85,6 +85,7 @@ class PresentationLayer(BaseLayer):
         path = self.render_string(str(event["value"]), context)
         path = Path(path)
         path.mkdir(parents=True, exist_ok=False)
+        logger.info("Path created {}".format(path))
 
     def get_template(self, template_name):
         try:
@@ -108,7 +109,7 @@ class PresentationLayer(BaseLayer):
             {
                 "type": self.RENDER,
                 "value": self.get_template(template),
-                "path": Path(self.cwd, schema.opts.path, template),
+                "path": Path(self.cwd, schema.opts.path) / Path(template).name,
             }
             for template in templates
         ]
@@ -136,7 +137,7 @@ class PresentationLayer(BaseLayer):
             self.__events_queue.append(data)
 
     def push_job(self, schema_name, return_schema: bool = False):
-        logger.info("Pushing {} schema job".format(schema_name))
+        logger.debug("Pushing {} schema job".format(schema_name))
         schema = self.get_schema(schema_name)
         template_events = self.get_template_events(schema)
         directory_events = self.get_directory_events(schema)
@@ -147,8 +148,7 @@ class PresentationLayer(BaseLayer):
         return self
 
     def render(self, context, persist=True):
-        logger.info("Trying to renderize source code in {}".format(self.cwd))
-        logger.info(json.dumps(context, indent=2))
+        logger.debug("Trying to renderize source code in {}".format(self.cwd))
         self.cwd.mkdir(parents=True, exist_ok=True)
         while True:
             try:
@@ -156,12 +156,13 @@ class PresentationLayer(BaseLayer):
                 self.handle(event, context)
             except IndexError:
                 logger.info("Renderization finished")
-                config_path = self.cwd / self.config_file
-                config_path.write_text(json.dumps(context, indent=2))
+                if persist:
+                    config_path = self.cwd / self.config_file
+                    config_path.write_text(json.dumps(context, indent=2))
                 return context
 
-    @classmethod
-    def from_config(cls, cwd: Path, config_file:str="mlops-configs.json"):
-        path = cwd / config_file
-        context = path.read_text()
-        logger.info(context)
+    def from_config(self, schema_name:str, config_file:str="mlops-configs.json"):
+        config_path = self.cwd / config_file
+        with config_path.open('r') as jn:
+            context = json.load(jn)
+        return self.create_schema(schema_name).load(context)
