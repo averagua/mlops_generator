@@ -31,6 +31,11 @@ Install
 ```python
 pip install -r ./requirements.txt
 ```
+
+```python
+python3 setup.py install
+```
+
 Features
 --------
 
