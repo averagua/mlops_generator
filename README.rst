@@ -39,12 +39,15 @@ python3 setup.py install
 Features
 --------
 
-* TODO
+* Initialize project ```mlops_generator init```
+* Add configurations ```mlops_generator add```
+* Add components ```mlops_generator component```
+* Help ```mlops_generator --help```
 
 Credits
 -------
 
-This documentation was inspirated from Cookiecutter_ and the `audreyr/cookiecutter-pypackage`_ project template. Thanks cookiecutter!
+This documentation was generated from Cookiecutter_ and the `audreyr/cookiecutter-pypackage`_ project template. Thanks cookiecutter!
 
 .. _Cookiecutter: https://github.com/audreyr/cookiecutter
 .. _`audreyr/cookiecutter-pypackage`: https://github.com/audreyr/cookiecutter-pypackage
