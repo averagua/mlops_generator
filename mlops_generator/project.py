@@ -29,16 +29,45 @@ class PipelineSchema(BaseSchema):
         path = "src/{{package_name}}/pipelines"
 
 
-class SklearnModel(BaseModel):
-    def __init__(self, class_name, estimator_type):
-        self.class_name = class_name
-        self.estimator_type = estimator_type
+class ComponentModel(BaseModel):
+    def __init__(self, component_name: str, component_type: str):
+        self.component_name = component_name.capitalize().replace('_', '')
+        self.component_type = component_type
 
+
+class PandasModel(ComponentModel):
+    def __init__(self, component_name, component_type):
+        super(PandasModel, self).__init__(
+            component_name=component_name, component_type=component_type
+        )
+        self.pandas = component_name.lower()
+
+class PandasSchema(BaseSchema):
+    __model__ = PandasModel
+    component_name = fields.Str(
+        description="Component class name. Ex. Extension result in extension.py.",
+        required=True,
+    )
+    component_type = fields.Str(default="pandas_extension", missing="pandas_extension")
+    pandas = fields.Str()
+    class Meta:
+        templates = ["components/{{pandas}}.py"]
+        path = "src/{{package_name}}"
+
+
+class SklearnModel(ComponentModel):
+    def __init__(self, component_name, component_type):
+        super(SklearnModel, self).__init__(
+            component_name=component_name, component_type=component_type
+        )
+        self.sklearn = fields.Str()
 
 class SklearnSchema(BaseSchema):
     __model__ = SklearnModel
-    class_name = fields.Str(description="Component class name", required=True)
-    estimator_type = fields.Str(
+    component_name = fields.Str(
+        description="Component class name. Ex. Trainner.", required=True
+    )
+    component_type = fields.Str(
         description="Sklearn base type",
         required=True,
         validate=validate.OneOf(
@@ -48,20 +77,14 @@ class SklearnSchema(BaseSchema):
                 "TransformerMixin",
                 "ClassifierMixin",
                 "ClusterMixin",
-                "DensityMixin"
+                "DensityMixin",
             ]
         ),
     )
 
     class Meta:
-        templates = ["components/sklearn/{{class_name}}.py"]
+        templates = ["components/{{sklearn}}.py"]
         path = "src/{{package_name}}"
-
-
-class ComponentModel(BaseModel):
-    def __init__(self, component_name: str):
-        self.component_name = component_name
-        self.component_classname = component_name[0].upper()
 
 
 class ComponentSchema(BaseSchema):

@@ -160,7 +160,7 @@ class Interface:
 
     @property
     def component_mapper(self):
-        return {"sklearn": "SklearnSchema"}
+        return {"sklearn": "SklearnSchema", "pandas": "PandasSchema"}
 
     def component(self, cwd: Path, module: str, *args, **kwargs):
         project = self.load_project(cwd)
@@ -168,10 +168,11 @@ class Interface:
         try:
             schema_name = self.component_mapper[module]
             obj = self.prompt.prompt_schema(
-                schema_name=schema_name, context={}, serialize=False
+                schema_name=schema_name, context={}, serialize=True
             )
             schema = self.player.push_job(schema_name, return_schema=True)
             context = schema.dump(obj)
+            logger.info(json.dumps(context, indent=2))
             context.update(project_schema.dump(project))
             self.player.render(context, persist=False)
         except KeyError as e:
