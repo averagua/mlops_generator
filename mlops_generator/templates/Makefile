@@ -54,7 +54,7 @@ test: ## run tests quickly with the default Python
 
 coverage: ## check code coverage quickly with the default Python
 	PYTHONPATH=. pytest
-	coverage run --source covid_mlops -m pytest
+	coverage run --source {{project_name}} -m pytest
 	coverage report -m
 	coverage html
 	$(BROWSER) htmlcov/index.html

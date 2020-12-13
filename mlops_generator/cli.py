@@ -17,17 +17,18 @@ logger.setLevel(logging.INFO)
 class InitCommand(Command):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.params.extend([
-            self.setup,
-            self.tests,
-            self.dockerfile,
-            self.deploy
-        ])
+        self.params.extend([self.setup, self.tests, self.dockerfile, self.deploy])
 
     @property
     def tests(self):
         """Initialize with tests"""
-        return Option(("--tests",), type=bool, help="Add pytest suite", is_flag=True)
+        return Option(
+            ("--tests",),
+            type=bool,
+            help="Add pytest suite",
+            is_flag=True,
+            default=True,
+        )
 
     @property
     def setup(self):
@@ -35,9 +36,9 @@ class InitCommand(Command):
         return Option(
             ("--setup",),
             type=bool,
-            help="Add setup entrypoint",
+            help="Add setup",
             is_flag=True,
-            default=False,
+            default=True,
         )
 
     @property
@@ -46,7 +47,7 @@ class InitCommand(Command):
         return Option(
             ("--docker",),
             type=bool,
-            help="Add setup entrypoint",
+            help="Add docker",
             is_flag=True,
             default=False,
         )
@@ -57,15 +58,17 @@ class InitCommand(Command):
         return Option(
             ("--deploy",),
             type=bool,
-            help="Add setup entrypoint",
+            help="Add pipeline CI",
             is_flag=True,
             default=False,
         )
+
 
 @click.group()
 def main():
     """Commmand Line Interface for MLOps lifecycle."""
     pass
+
 
 @main.command("init", help="Initialize mlops project", cls=InitCommand)
 def init(*args, **kwargs):
@@ -95,6 +98,7 @@ def add(project_dir, *args, **kwargs):
         logger.exception(error)
         sys.exit(0)
 
+
 @main.command(
     "component",
     help="Generate a component",
@@ -105,11 +109,10 @@ def add(project_dir, *args, **kwargs):
     "--module",
     help="Module type to generate",
     prompt="What component do you want to create?",
-    type=click.Choice(["pandas", "sklearn", "tensorflow", "kubeflow"]),
-    default="pandas",
+    type=click.Choice(["pandas", "sklearn", "kubeflow-component", "kubeflow-pipeline", "jupyter-notebook", "artifacts"]),
+    default="sklearn",
     show_default=True,
 )
-
 def component(project_dir, module, *args, **kwargs):
     """CLI for generate MLOps archetypes."""
     try:
@@ -119,6 +122,7 @@ def component(project_dir, module, *args, **kwargs):
         logger.exception(error)
         sys.exit(0)
 
+
 @main.command(
     "pipeline",
     help="Generate a kubeflow pipeline",
@@ -127,6 +131,7 @@ def component(project_dir, module, *args, **kwargs):
 def pipeline():
     """Generate a pipeline."""
     pass
+
 
 if __name__ == "__main__":
     main()

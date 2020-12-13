@@ -1,9 +1,14 @@
+"""
+{{component_name}} kubeflow container op
+version {{version}} - {{creation_date}}
+company: {{company}}
+"""
 from kfp.dsl import ContainerOp
-from kfp.dsl.types import Integer, Float, Dict, String, List, 
+from kfp.dsl.types import Integer, Float, Dict, String, List
 
-_BASE_IMAGE = "{{docker.registry}}.io/{{project_name}}/{{project_package}}:latest"
+_BASE_IMAGE = "{{architecture.docker.registry}}/{{project_name}}/{{project_name}}:latest"
 
-class {{component_classname}}ContainerOp(ContainerOp):
+class {{component_name}}(ContainerOp):
     """Define kubeflow pipeline component."""
 
     def __init__(self,
@@ -12,10 +17,10 @@ class {{component_classname}}ContainerOp(ContainerOp):
         dparam: Dict(),
         lparam: List()
         ):
-        super(PreprocessingContainerOp, self).__init__(
+        super({{component_name}}, self).__init__(
             name="{{ component_name }}",
             image=_BASE_IMAGE,
-            command=["{{ setup["entry_point"]}}", "{{ component_name }}"],
+            command=["{{ setup.entry_point }}", "{{ component_name }}"],
             arguments=[
                 "--sparam", sparam,
                 "--fparam", fparam,
@@ -23,11 +28,7 @@ class {{component_classname}}ContainerOp(ContainerOp):
                 "--lparam", lparam
             ],
             file_outputs={
-                {% if add_ui %}
-                "mlpipeline-ui-metadata": "/mlpipeline-ui-metadata.json",
-                {% endif %}
-                {% if tmp %}
-                "tmp-data": "/tmp_data.json",
-                {% endif %}
+                {% if ui_metadata %}"mlpipeline-ui-metadata": "/mlpipeline-ui-metadata.json",{% endif %}
+                {% if tmp_data %}"tmp-data": "{{tmp_data}}",{% endif %}
             },
         )

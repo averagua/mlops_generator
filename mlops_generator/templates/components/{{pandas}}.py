@@ -1,6 +1,6 @@
 """
 {{component_name}} Accessor Module
-version {{version}} - {{date}}
+version {{version}} - {{creation_date}}
 company: {{company}}
 """
 

@@ -3,7 +3,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import NoReturn, Dict, List
 
-from mlops_generator.prompt_adapter import PromptAdapter
+from mlops_generator.prompt import PromptAdapter
 from mlops_generator.persistence import PresentationLayer
 
 import logging
@@ -13,15 +13,7 @@ logging.basicConfig(level=logging.INFO)
 
 
 class Interface:
-    """
-    Implement functionalities for project administration.
-
-    Supported:
-        - initialize project
-        - add pluging
-        - generate
-        -
-    """
+    """Interface for project cli administration."""
 
     def __init__(
         self,
@@ -48,6 +40,13 @@ class Interface:
                 extra_context={"entry_point": project.project_name},
                 serialize=True,
             )
+        elif option == "tests":
+            project.tests = self.prompt_and_push(
+                "TestSChema",
+                extra_context={},
+                serialize=True,
+            )
+            logger.info(project.tests)
         else:
             logger.warning("Handler not implemented {}".format(option))
         return project
@@ -132,6 +131,8 @@ class Interface:
         # Push project templates and directories to presentation layer
         project_schema = self.player.push_job(self.PROJECT_SCHEMA, return_schema=True)
         self.iter_options(kwargs, project)
+        if project.click:
+            self.player.push_job("ClickSchema")
         # Serialize project object to dictionary
         context = project_schema.dump(project)
         # Log ig
@@ -160,7 +161,14 @@ class Interface:
 
     @property
     def component_mapper(self):
-        return {"sklearn": "SklearnSchema", "pandas": "PandasSchema"}
+        return {
+            "sklearn": "SklearnSchema",
+            "pandas": "PandasSchema",
+            "kubeflow-component": "KFPContainerOpSchema",
+            "kubeflow-pipeline": "PipelineSchema",
+            "artifacts": "ArtifactsSchema",
+            "jupyter-notebook": "NotebooksSchema"
+        }
 
     def component(self, cwd: Path, module: str, *args, **kwargs):
         project = self.load_project(cwd)
@@ -172,8 +180,8 @@ class Interface:
             )
             schema = self.player.push_job(schema_name, return_schema=True)
             context = schema.dump(obj)
-            logger.info(json.dumps(context, indent=2))
             context.update(project_schema.dump(project))
+            logger.info(json.dumps(context, indent=2))
             self.player.render(context, persist=False)
         except KeyError as e:
             logger.error(e)

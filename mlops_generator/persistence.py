@@ -47,7 +47,7 @@ class PresentationLayer(BaseLayer):
         self.__events_queue = deque()
         self.config_file = config_file
         logger.info(
-            "Persistence layer initialized in current root directory {}".format(
+            "Persistence layer initialized in current working directory {}".format(
                 self.__cwd
             )
         )
