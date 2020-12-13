@@ -41,7 +41,18 @@ Features
 
 * Initialize project ```mlops_generator init```
 * Add configurations ```mlops_generator add```
+        * `--setup` add setup.py entry point
+        * `--tests` add pytests suite for unit tests
+        * `--docker` add dockerfile and .dockerignore
+        * `--deploy` add Google Cloud Build CI Pipeline
 * Add components ```mlops_generator component```
+        * Pandas extension
+        * Sklearn base classes (TransformerMixin, RegressorMixin, ClassifierMixin, etc)
+        * kubeflow-component or Kubeflow Container Op 
+        * kubeflow-pipeline
+        * Jupyter-notebook
+        * Temporal and Visualization artifacts for kubeflow
+
 * Help ```mlops_generator --help```
 
 Credits
