@@ -92,7 +92,7 @@ class BaseSchema(Schema):
     @post_load
     def make_object(self, context, **kwargs):
         """Resolve declared model after serialization"""
-        logger.info('Serializing object {}'.format(self))
+        logger.debug('Serializing object {}'.format(self))
         made_obj = self.__model__(**context)
         # made_obj.render()
         return made_obj

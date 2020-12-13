@@ -17,7 +17,7 @@ logger.setLevel(logging.INFO)
 class InitCommand(Command):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.params.extend([self.setup, self.tests, self.dockerfile, self.deploy])
+        self.params.extend([self.setup, self.tests, self.dockerfile, self.deploy,])
 
     @property
     def tests(self):
@@ -27,7 +27,7 @@ class InitCommand(Command):
             type=bool,
             help="Add pytest suite",
             is_flag=True,
-            default=True,
+            default=False,
         )
 
     @property
@@ -38,7 +38,7 @@ class InitCommand(Command):
             type=bool,
             help="Add setup",
             is_flag=True,
-            default=True,
+            default=False,
         )
 
     @property
@@ -63,6 +63,94 @@ class InitCommand(Command):
             default=False,
         )
 
+class ComponentCommmand(Command):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.params.extend([
+            self.project_dir,
+            self.pandas,
+            self.sklearn,
+            self.kubeflow_component,
+            self.kubeflow_pipeline,
+            self.jupyter_notebook,
+            self.artifacts
+        ])
+
+    @property
+    def pandas(self):
+        """Pandas extension"""
+        return Option(
+            ("--pandas",),
+            type=bool,
+            help="Add pandas extension",
+            is_flag=True,
+            default=False,
+        )
+
+    @property
+    def project_dir(self):
+        """Project directory"""
+        return Option(
+            ("--project-dir",),
+            type=str,
+            help="Project directory, by default is current working directory",
+            default="",
+        )      
+
+    @property
+    def sklearn(self):
+        """Sklearn base class"""
+        return Option(
+            ("--sklearn",),
+            type=bool,
+            help="Add sklearn base class",
+            is_flag=True,
+            default=False,
+        )
+
+    @property
+    def kubeflow_component(self):
+        """Kubeflow component container op class"""
+        return Option(
+            ("--kubeflow-component",),
+            type=bool,
+            help="Add kubeflow component container op",
+            is_flag=True,
+            default=False,
+        )
+
+    @property
+    def kubeflow_pipeline(self):
+        """Pipeline implementation"""
+        return Option(
+            ("--kubeflow-pipeline",),
+            type=bool,
+            help="Add kubeflow-pipeline",
+            is_flag=True,
+            default=False,
+        )
+
+    @property
+    def jupyter_notebook(self):
+        """Jupyter notebook document"""
+        return Option(
+            ("--jupyter-notebook",),
+            type=bool,
+            help="Add kubeflow-pipeline",
+            is_flag=True,
+            default=False,
+        )
+
+    @property
+    def artifacts(self):
+        """Temporal data and visualization artifacts"""
+        return Option(
+            ("--artifacts",),
+            type=bool,
+            help="Add temporal data and visualization artifacts",
+            is_flag=True,
+            default=False,
+        )
 
 @click.group()
 def main():
@@ -103,34 +191,26 @@ def add(project_dir, *args, **kwargs):
     "component",
     help="Generate a component",
     context_settings=dict(ignore_unknown_options=True),
+    cls=ComponentCommmand
 )
-@click.option("--project-dir", help="Give project name if you want", default="")
-@click.option(
-    "--module",
-    help="Module type to generate",
-    prompt="What component do you want to create?",
-    type=click.Choice(["pandas", "sklearn", "kubeflow-component", "kubeflow-pipeline", "jupyter-notebook", "artifacts"]),
-    default="sklearn",
-    show_default=True,
-)
-def component(project_dir, module, *args, **kwargs):
+def component(project_dir, *args, **kwargs):
     """CLI for generate MLOps archetypes."""
     try:
         cwd = Path().cwd() / project_dir
-        Interface().component(cwd, module, *args, **kwargs)
+        Interface().component(cwd, *args, **kwargs)
     except Exception as error:
         logger.exception(error)
         sys.exit(0)
 
 
-@main.command(
-    "pipeline",
-    help="Generate a kubeflow pipeline",
-    context_settings=dict(ignore_unknown_options=True),
-)
-def pipeline():
-    """Generate a pipeline."""
-    pass
+# @main.command(
+#     "pipeline",
+#     help="Generate a kubeflow pipeline",
+#     context_settings=dict(ignore_unknown_options=True),
+# )
+# def pipeline():
+#     """Generate a pipeline."""
+#     pass
 
 
 if __name__ == "__main__":

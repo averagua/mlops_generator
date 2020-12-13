@@ -135,8 +135,6 @@ class Interface:
             self.player.push_job("ClickSchema")
         # Serialize project object to dictionary
         context = project_schema.dump(project)
-        # Log ig
-        logger.info(json.dumps(context, indent=2))
         # Renderize queued templates using got context from user
         self.player.render(context, persist=True)
 
@@ -155,7 +153,7 @@ class Interface:
         # Serialize project object to dictionart
         context = project_schema.dump(project)
         # Log ig
-        logger.info(json.dumps(context, indent=2))
+        # logger.info(json.dumps(context, indent=2))
         # Renderize queued templates using got context from user
         self.player.render(context, persist=True)
 
@@ -170,18 +168,19 @@ class Interface:
             "jupyter-notebook": "NotebooksSchema"
         }
 
-    def component(self, cwd: Path, module: str, *args, **kwargs):
+    def component(self, cwd: Path, *args, **kwargs):
         project = self.load_project(cwd)
         project_schema = self.player.create_schema(self.PROJECT_SCHEMA)
         try:
-            schema_name = self.component_mapper[module]
-            obj = self.prompt.prompt_schema(
-                schema_name=schema_name, context={}, serialize=True
-            )
-            schema = self.player.push_job(schema_name, return_schema=True)
-            context = schema.dump(obj)
-            context.update(project_schema.dump(project))
-            logger.info(json.dumps(context, indent=2))
-            self.player.render(context, persist=False)
+            options = self.filter_options(kwargs)
+            for option in options:
+                schema_name = self.component_mapper[option]
+                obj = self.prompt.prompt_schema(
+                    schema_name=schema_name, context={}, serialize=True
+                )
+                schema = self.player.push_job(schema_name, return_schema=True)
+                context = schema.dump(obj)
+                context.update(project_schema.dump(project))
+                self.player.render(context, persist=False)
         except KeyError as e:
             logger.error(e)

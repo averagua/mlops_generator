@@ -192,7 +192,12 @@ class SetupSchema(BaseSchema):
     __model__ = SetupConfig
 
     class Meta:
-        templates = ["setup.py", "setup.cfg"]
+        templates = [
+            "setup.py",
+            "setup.cfg",
+            "requirements.txt",
+            "Makefile",
+        ]
 
 
 class TestsModel(BaseModel):
@@ -417,9 +422,7 @@ class ProjectSchema(BaseSchema):
         templates = [
             "LICENSE",
             ".gitignore",
-            "requirements.txt",
             "Readme.md",
-            "Makefile",
         ]
         default_dirs = [
             "src/{{project_name}}",
