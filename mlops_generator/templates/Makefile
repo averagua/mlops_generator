@@ -1,4 +1,4 @@
-.PHONY: clean clean-test clean-pyc clean-build docs help
+.PHONY: clean clean-test clean-pyc clean-build docs help docker-build, local-test
 .DEFAULT_GOAL := help
 
 define BROWSER_PYSCRIPT
@@ -47,43 +47,43 @@ clean-test: ## remove test and coverage artifacts
 	rm -fr htmlcov/
 	rm -fr .pytest_cache
 
-lint: ## check style with flake8
-	flake8 mlops_generator tests
-
 test: ## run tests quickly with the default Python
-	pytest
-
-test-all: ## run tests on every Python version with tox
-	tox
+	# pip install -e .
+	PYTHONPATH=. pytest
+	# python -m pytest
 
 coverage: ## check code coverage quickly with the default Python
-	coverage run --source mlops_generator -m pytest
+	PYTHONPATH=. pytest
+	coverage run --source {{project_name}} -m pytest
 	coverage report -m
 	coverage html
 	$(BROWSER) htmlcov/index.html
 
-docs: ## generate Sphinx HTML documentation, including API docs
-	rm -f docs/mlops_generator.rst
-	rm -f docs/modules.rst
-	sphinx-apidoc -o docs/ mlops_generator
-	$(MAKE) -C docs clean
-	$(MAKE) -C docs html
-	$(BROWSER) docs/_build/html/index.html
-
-servedocs: docs ## compile the docs watching for changes
-	watchmedo shell-command -p '*.rst' -c '$(MAKE) -C docs html' -R -D .
-
-release: dist ## package and upload a release
-	twine upload dist/*
-
 dist: clean ## builds source and wheel package
-	python setup.py sdist
-	python setup.py bdist_wheel
+	python {{setup["install"]}} sdist
+	python {{setup["install"]}} bdist_wheel
 	ls -l dist
 
 install: clean ## install the package to the active Python's site-packages
-	python setup.py install
+	python {{setup["install"]}} install
 
+install-dev:
+	pip install -r requirements_dev.txt
 
-venv:
+create-venv:
 	virtualenv -p python3 venv
+
+activate-env:
+	source venv/bin/activate
+
+test-package: clean install
+	python -m pytest --show-capture=all --log-cli-level=10
+
+test-install: install
+	pytest --show-capture=all
+
+base_image={{ project_name }}:latest
+
+# Base image
+build-base-image: clean
+	docker build . -t $(base_image)

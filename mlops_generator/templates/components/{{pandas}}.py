@@ -1,29 +1,20 @@
 """
-Example Accessor Module
-version 0.1.0 - July 29, 2020
-
-Author: <AUTHOR>
+{{component_name}} Accessor Module
+version {{version}} - {{creation_date}}
+company: {{company}}
 """
 
 import pandas as pd
 
-@pd.api.extensions.register_dataframe_accessor('example_accessor')
-class ExampleAccessor:
+@pd.api.extensions.register_dataframe_accessor('{{pandas}}_accessor')
+class {{component_name}}Accessor:
     """
-   Example Accessor class for extend pandas
-
+   {{component_name}} Accessor class for extend pandas
     See: https://pandas.pydata.org/pandas-docs/stable/development/extending.html
     """
     def __init__(self, __obj):
         """
         __init__ Constructor for pandas DataFrame extension like dependency injection.
-
-        Usage:
-
-            # Define a pandas DataFrame
-            df = pd.DataFrame(data, columns, indexes)
-            result = df.example_accessor.foo()
-
         Args:
             __obj (DataFrame): Dataframe in context
         """
@@ -31,8 +22,11 @@ class ExampleAccessor:
 
     def foo(self):
         """
-        foo Extend here your implementations
-
+        Extend here your own implementations
+        Usage:
+            # Define a pandas DataFrame
+            df = pd.DataFrame(data, columns, indexes)
+            result = df.{{pandas}}_accessor.foo()
         Raises:
             NotImplementedError: [description]
         """

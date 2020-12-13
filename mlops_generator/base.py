@@ -1,88 +1,104 @@
 import logging
-from .render import Jinja2Environment
-from datetime import date
-import io
+from collections import OrderedDict
+from importlib import import_module
 
-logger = logging.getLogger(__file__)
-logger.setLevel(logging.INFO)
+from pathlib import Path
+from marshmallow import (
+    Schema,
+    SchemaOpts,
+    fields,
+    exceptions,
+    utils,
+    missing,
+    validate,
+    pre_load,
+    post_load,
+    pre_dump,
+    post_dump,
+)
+from marshmallow.exceptions import ValidationError
+from marshmallow.schema import SchemaMeta
+from types import GeneratorType
+from datetime import datetime
+from pathlib import Path
 
-TEMPLATE_ENVIRONMENT = Jinja2Environment() 
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
+import click
+import sys
+import json
 
-class Generator:
-    """
-    Base class template generator for inherit it and create custom modules bases in python templates.
-    """
-    def __init__(self, template_filename, context):
-        """
-        __init__ Initialize the class given the template filename and context
+class BaseLayer(object):
+    def __init__(self, package:str):
+        self.__schema = None
+        self.loader = import_module(package)
+
+    @property
+    def schema(self):
+        if self.__schema is None: raise AttributeError('Schema not setted')
+        return self.__schema
+    
+    @schema.setter
+    def schema(self, schema_name):
+        """Set echema for future purpose
 
         Args:
-            template_filename (str): The filename of template, in _template directory. 
-            context (Dict): Context that will be used render the python template in usefull code.
+            schema (marshmallow.Schema): Schema to prompt
+
+        Raises:
+            TypeError: Is not valid schema
         """
-        self.__env = TEMPLATE_ENVIRONMENT.env
-        self.__template_filename = template_filename
-        self.__template = None
-        self.__context = context
-        self.__add_version_context()
-        self.__add_date_context()
-        self.__file_content = None
+        schema = self.get_schema(schema_name)
+        if not (isinstance(schema, SchemaMeta) or isinstance(schema, Schema)):
+            raise TypeError('Schema to prompt must be {} or {}'.format(Schema.__class__, SchemaMeta.__class__))
+        self.__schema = schema()
 
-    @property
-    def template(self):
-        """
-        template Jinja template
-
-        Returns:
-            Generator: Self
-        """
-        return self.__template
-
-    @property
-    def accessor_name(self):
-        return self.__accessor_name
-
-    @property
-    def context(self):
-        return self.__context
-
-    def __add_version_context(self):
-        self.__context['version'] = '0.1.0'
+    def get_schema(self, schema_name):
+        schema = getattr(self.loader, schema_name, None)
+        if schema is None: raise ModuleNotFoundError('{} not found'.format(schema_name))
+        return schema
     
-    def __add_date_context(self):
-        self.__context['date'] = date.today().strftime("%B %d, %Y")
+    def create_schema(self, schema_name):
+        return self.get_schema(schema_name)()
 
-    def generate(self):
-        """
-        generate Generate source code, that its render the file
-        using the given context.
+class BaseModel(object):
 
-        Returns:
-            jinja2.environment.Template: Jinja2 Template
-        """
-        logger.info(self.__template)
-        logger.info(self.__context)
-        self.__template = self.__env.get_template(self.__template_filename)
-        self.__file_content = self.__template.render(self.__context)
-        return self
+    def __init__(self):
+        pass
 
-    def save(self, out_filename):
-        """
-        save Save the rendered file in the given directory.
+    # def __repr__(self):
+    #     attributes = '\t'+'\t'.join([attr+'='+ str(getattr(self, attr, None))+',\n' for attr in self.__dict__ ])
+    #     return """\n{}(\n{})""".format(self.__class__.__name__, attributes)
 
-        Args:
-            out_filename (string): The destination filename path
-        """
-        with io.open(out_filename, 'w', encoding='utf-8') as f:
-            logger.info('Saving in {}'.format(out_filename))
-            f.write(self.__file_content)
-        return self
+class BaseOptSchema(SchemaOpts):
 
-    def run(self, output_filename):
-        self.generate().save(output_filename)
-        return self
+    def __init__(self, meta, **kwargs):
+        SchemaOpts.__init__(self, meta, **kwargs)
+        self.templates = getattr(meta, 'templates', None)
+        self.path = getattr(meta, 'path', '')
+        self.default_dirs = getattr(meta, 'default_dirs', [])
 
-def runner(template_filename, output_filename, context):
-    
-    from cookiecutter.generate import generate_file
-    gen = Generator(template_filename, context).run(output_filename)
+class BaseSchema(Schema):
+    """Base schema for define serializable and promptable methods"""
+    # Build in model
+    __model__ = BaseModel 
+    OPTIONS_CLASS = BaseOptSchema
+
+    format_date ='%B %d %X %Y'
+
+    class Meta:
+        ordered = True
+
+    @post_load
+    def make_object(self, context, **kwargs):
+        """Resolve declared model after serialization"""
+        logger.info('Serializing object {}'.format(self))
+        made_obj = self.__model__(**context)
+        # made_obj.render()
+        return made_obj
+
+    @classmethod
+    def today(cls):
+        """Standar today date."""
+        return datetime.today()#.strftime(cls.format_date)
+

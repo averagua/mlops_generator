@@ -26,7 +26,11 @@ CLI for MLOps generator
 * Free software: MIT license
 * Documentation: https://mlops-generator.readthedocs.io.
 
-
+Install
+--------
+```python
+pip install -r ./requirements.txt
+```
 Features
 --------
 
@@ -35,7 +39,7 @@ Features
 Credits
 -------
 
-This package was created with Cookiecutter_ and the `audreyr/cookiecutter-pypackage`_ project template.
+This documentation was inspirated from Cookiecutter_ and the `audreyr/cookiecutter-pypackage`_ project template. Thanks cookiecutter!
 
 .. _Cookiecutter: https://github.com/audreyr/cookiecutter
 .. _`audreyr/cookiecutter-pypackage`: https://github.com/audreyr/cookiecutter-pypackage

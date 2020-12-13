@@ -1,0 +1,41 @@
+steps:
+  # Clone repository
+  - name: 'gcr.io/cloud-builders/git'
+    args: [
+      'clone', '${_REPO_URL}',
+      '--depth', '1',
+      '--branch', '$BRANCH_NAME',
+      '--verbose']
+    id: 'clone-repo'
+
+  # Get credentials from storage for dont expose it in repository
+  - name: 'gcr.io/cloud-builders/gsutil'
+    args: ['cp', 'gs://$REPO_NAME/credentials/$_KF_SA', '$REPO_NAME']
+    id: 'get-credentials'
+
+  # SKIP BUILD BASE IMAGE FOR ACELERATE THE DEPLOYMENT
+  # Build base image with the core project
+  - name: 'gcr.io/cloud-builders/docker'
+    dir: '$REPO_NAME'
+    args: ['build',
+      '-t', 'gcr.io/$PROJECT_ID/$REPO_NAME:latest',
+      # '-t', 'gcr.io/$PROJECT_ID/$REPO_NAME:$SHORT_SHA',
+      '.']
+    id: 'build-base-image'
+
+  # Push base image 'latest' tagged
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/$REPO_NAME']
+    dir: '$REPO_NAME'
+    id: 'push-base-image'
+
+  - name: 'gcr.io/$PROJECT_ID/$REPO_NAME:latest'
+    dir: '$REPO_NAME'
+    args: ['{{ project_name }}', 'pipelines', '--kfp-compile', '--version', '$SHORT_SHA']
+    env: [
+      'GOOGLE_APPLICATION_CREDENTIALS=$_KF_SA'
+    ]
+    id: 'upload-pipeline'
+
+images:
+  - 'gcr.io/$PROJECT_ID/$REPO_NAME:latest'
